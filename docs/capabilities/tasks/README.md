@@ -155,6 +155,13 @@ TOKEN=$(curl -s -X POST http://localhost:3333/api/v1/auth/signup \
   -d '{"fullName":"Ada Lovelace","email":"ada@example.com","password":"secreto123","passwordConfirmation":"secreto123"}' \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['token'])")
 
+# 1b. Si la cuenta de pruebas ya existe, el token sale del login.
+#     Cuenta de pruebas de Ana Pérez:
+TOKEN=$(curl -s -X POST http://localhost:3333/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"ana.perez@example.com","password":"secreto123"}' \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['data']['token'])")
+
 # 2. Crear una tarea — 201
 curl -s -X POST http://localhost:3333/api/v1/tasks \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \

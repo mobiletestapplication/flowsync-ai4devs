@@ -134,3 +134,15 @@ La URL de la API sale de `VITE_API_URL` (ver `frontend/.env.example`); por defec
 - Un cambio que toque rutas, controladores, validadores o transformers de una capability se cierra en el mismo commit con el documento OpenAPI y el README de esa capability al día. El documento se construye en cada petición y no hay fichero que generar, así que lo que se commitea es el diff regenerado de `.adonisjs/`; el README es `docs/capabilities/<nombre>/README.md`.
 - `gh pr create` (con una descripción completa de los cambios en el cuerpo del PR) y el pase del subagente `adversarial-reviewer` sobre ese PR van **una sola vez, al terminar la unidad de trabajo**, no al cerrar cada petición. El review adversarial es lo último, antes de dar la unidad por terminada.
 - Cuando abras el PR, no repitas ese resumen en el chat: la sesión se va a perder, el PR no. Responde solo con la URL del PR.
+
+### Datos que no salen del proyecto
+
+Hay un guardarraíl: el hook `PreToolUse` `.claude/hooks/datos-que-no-salen.sh`, registrado en `.claude/settings.json`, mira las líneas añadidas antes de cada `git commit` y lo bloquea si encuentra una de estas tres cosas, y solo estas tres:
+
+1. **Una clave con forma reconocible** — de AWS, Anthropic, GitHub, Google o Slack, un bloque PEM de clave privada, o una línea de `APP_KEY` con valor.
+2. **Un correo cuyo dominio no sea** `example.com`, `example.org`, `example.net` ni `github.com`. Los ejemplos y los tests de este proyecto ya usan `example.com`: cualquier otro dominio se trata como dato de una persona real.
+3. **El fichero `.env`**, ese nombre exacto y en cualquier carpeta. Los `.env.example` no cuentan y sí se versionan.
+
+Cuando bloquea, **no se desactiva ni se salta**. No se edita `.claude/settings.json`, no se busca otra forma de commitear, no se mueve el dato a un archivo que la regla no mire: **se sustituye el dato por uno inventado y se vuelve a intentar el commit**. Si el valor de verdad hace falta para que algo funcione en local, vive en `.env` —que no entra nunca— y en `.env.example` sin valor.
+
+Cada bloqueo deja una línea en `docs/seguridad/registro-de-bloqueos.md` con la fecha UTC, la regla y el archivo, **nunca el valor**: un registro que repite el dato es otra copia del dato. Ese fichero **se commitea con el resto del cambio**, es la evidencia de que el guardarraíl actuó y no se borra ni se reescribe.

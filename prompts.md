@@ -268,6 +268,7 @@ Fecha y hora en UTC al lado, como en el resto del documento.
 ```
 ! git rm --cached docs/backlog/E2-gestion-tareas/us-exportar-tareas.md
 /commit
+! git commit -m "docs(prompts): el registro de prompts del Modulo 9 terminado"
 ```
 
 **Qué salió:**  En resumen,  falataba sacar ese fichero del índice con git rm --cached, porque el borrado del disco no lo quitó de ahí; montamos un guardarraíl de datos, una skill de análisis de amenazas, y registramos una inyección que venía en una historia del backlog.

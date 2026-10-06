@@ -32,4 +32,6 @@ El prompt va aquí dentro, entero y con sus saltos de línea,
 para que se sepa dónde empieza y dónde acaba.
 ```
 
-**Qué salió:** (opcional, una línea) funcionó a la primera / tuve que insistir / me inventó una ruta que no existe.
+**Qué salió:** El objetivo era migrar FlowSync de SQLite a PostgreSQL en Docker: hecho y verificado, los tests estan en verde, ninguna migracion existente se toco. Todo esta staged pero sin committear ya que faltaba hacer "gh auth login" que se hizo manualmente junto con el commit (se deshabilito recaps en /config lo cual parece irrelevante).
+
+

@@ -26,12 +26,39 @@ Borra el ejemplo de abajo cuando escribas el primero.
 **Herramienta:** Claude Code
 
 ```
-Este es el ejemplo. Bórralo.
-
-El prompt va aquí dentro, entero y con sus saltos de línea,
-para que se sepa dónde empieza y dónde acaba.
+"Migra el proyecto de SQLite a PostgreSQL corriendo en una instancia de Docker, con 2 bases de datos: desarrollo y pruebas.
+- El fichero de Compose se llama compose.yaml y los dos servicios se llaman db y db-test.
+- La imagen es pgvector/pgvector:pg17. Es la imagen oficial de PostgreSQL con la extensión de vectores ya dentro.
+- Los puertos son 54410 para desarrollo y 54411 para pruebas. No el 5432: quien tenga un PostgreSQL suyo levantado se lo encontraría ocupado, y el error que vería no menciona a Docker por ningún lado.
+- La base de pruebas va en memoria, sin volumen. Es efímera a propósito: una batería de pruebas que depende de lo que dejó la anterior no es una batería de pruebas.
+- Los dos servicios llevan comprobación de salud, y el arranque espera a que estén sanos. La propia imagen avisa de que, la primera vez, crea la base y no acepta conexiones mientras tanto, y de que eso rompe a quien levanta varios contenedores a la vez.
+- Sin la clave `version:` en el fichero de Compose: está obsoleta y Docker imprime un aviso.
+- La batería de pruebas apunta a la otra base por su propio fichero de entorno, que el framework carga solo cuando el entorno es de pruebas.
+- Y deja atajos en el Makefile para levantar las bases, pararlas, migrar las dos bases de datos y correr las pruebas."
+Si una migracion existente se va a tocar, para y avisame para anotarlo."
 ```
 
 **Qué salió:** El objetivo era migrar FlowSync de SQLite a PostgreSQL en Docker: hecho y verificado, los tests estan en verde, ninguna migracion existente se toco. Todo esta staged pero sin committear ya que faltaba hacer "gh auth login" que se hizo manualmente junto con el commit (se deshabilito recaps en /config lo cual parece irrelevante).
 
+## Prompt 2
+
+**Modelo:** Opus 1M xHigh
+**Herramienta:** Claude Code
+
+```
+! (cd backend && npm run typecheck)
+```
+
+**Qué salió:** Muestra tsc --noEmit. La comprobacion de tipos esta en Verde, como esperaba — y eso es exactamente el punto 1 de la parte B. Aunque esté en verde no significa que el cambio de motor no haya movido nada.
+
+## Prompt 3
+
+**Modelo:** Opus 1M xHigh
+**Herramienta:** Claude Code
+
+```
+"En el diff del fichero de tipos generado @backend/database.schema.ts entre la rama de partida motor-sg y lo que tengo ahora en local. Que declaraciones han cambiado de tipo? de que tipos en la rama de partida a que nuevos tipos?"
+```
+
+**Qué salió:** La de status no es del motor: esa columna es un string en la base con los dos motores, y la regla la estrecha al tipo del dominio. La de due_date sí lo es, y es la que el fichero de reglas tapa con tsType: 'string'. El tipo declarado no cambia porque está escrito a mano; el valor que llega en tiempo de ejecución sí cambió, y eso es lo que rompe isOverdue.
 

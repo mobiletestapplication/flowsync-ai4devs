@@ -24,4 +24,12 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
+
+  // Base de datos (PostgreSQL, en `compose.yaml`). Qué base es depende del
+  // entorno: `.env` apunta a la de desarrollo y `.env.test` a la de pruebas.
+  DB_HOST: Env.schema.string({ format: 'host' }),
+  DB_PORT: Env.schema.number(),
+  DB_USER: Env.schema.string(),
+  DB_PASSWORD: Env.schema.string(),
+  DB_DATABASE: Env.schema.string(),
 })

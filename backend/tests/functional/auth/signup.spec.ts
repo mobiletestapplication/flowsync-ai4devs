@@ -7,10 +7,11 @@ import testUtils from '@adonisjs/core/services/test_utils'
  * «Validación de los datos de registro» y «Un email, una sola cuenta» de
  * `openspec/specs/auth/spec.md`.
  *
- * El aislamiento es una transacción global y no un truncate a propósito: la
- * suite functional pega contra el mismo fichero SQLite que el servidor de
- * desarrollo (`config/database.ts` no tiene override por entorno), y vaciarlo
- * se llevaría por delante los datos con los que se está trabajando.
+ * El aislamiento es una transacción global: la suite pega contra `db-test`
+ * (puerto 54411, declarado en `.env.test`), que es otra base distinta de la de
+ * desarrollo y además vive en memoria, así que lo que hace falta es que un test
+ * no vea lo que escribió el anterior. Un rollback lo consigue sin pagar un
+ * truncate por test.
  */
 test.group('Auth | registro', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())

@@ -6,19 +6,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FlowSync: proyecto de práctica del curso (gestión de tareas en equipo). Monorepo sin workspaces ni `package.json` raíz — **todos los comandos se ejecutan desde `backend/` o desde `frontend/`**.
 
-- `backend/` — API AdonisJS 7 + Lucid 22 + SQLite, escucha en `http://localhost:3333`
+- `backend/` — API AdonisJS 7 + Lucid 22 + PostgreSQL 17, escucha en `http://localhost:3333`
 - `frontend/` — React 19 + Vite 8, escucha en `http://localhost:5173`
 
 La rama `s1/start` es el punto de partida de los alumnos; `main` es la base del repo cliente.
 
 ## Comandos
 
+### Bases de datos (desde la raíz)
+
+Las dos bases son PostgreSQL 17 en Docker (`compose.yaml`, imagen `pgvector/pgvector:pg17`):
+`db` en el 54410 para desarrollo, con volumen, y `db-test` en el 54411 para la batería de
+pruebas, en memoria y sin volumen. Nunca el 5432, para no chocar con un PostgreSQL propio.
+
+```bash
+make db-up      # levanta las dos y espera a que las comprobaciones de salud den verde
+make db-down    # las para (el volumen de desarrollo se conserva)
+make migrate    # migra las dos bases
+make test       # levanta, migra la de pruebas y corre la batería
+make clean      # borra node_modules y las bases, datos incluidos (docker compose down -v)
+```
+
+`make db-up` usa `docker compose up -d --wait`, y eso no es decorativo: `up -d` a secas vuelve
+mientras PostgreSQL todavía está creando la base y rechazando conexiones, y la primera
+migración se estrella. El `pg_isready` del healthcheck va contra `127.0.0.1` por lo mismo: el
+servidor temporal de la inicialización escucha solo en el socket Unix, así que por TCP no
+contesta nadie hasta que la base está de verdad en pie.
+
 ### Backend (`cd backend`)
 
 ```bash
 npm install
 cp .env.example .env && node ace generate:key   # solo la primera vez
-node ace migration:run                          # crea tmp/db.sqlite3 y regenera database/schema.ts
+node ace migration:run                          # migra la base de desarrollo y regenera database/schema.ts
 npm run dev                                     # node ace serve --hmr
 npm test                                        # node ace test
 npm run openapi:generate                        # escribe el documento OpenAPI en docs/api/openapi.json
@@ -38,7 +58,7 @@ node ace test --groups=... --tags=... --failed --watch
 node ace make:test --suite=functional # scaffolding de un fichero de test
 ```
 
-Ojo con la BD en tests: `config/database.ts` define una única conexión SQLite apuntando a `app.tmpPath('db.sqlite3')` sin override por entorno, así que las suites functional pegan contra el **mismo fichero** que el servidor de desarrollo. `.env.test` solo cambia `SESSION_DRIVER=memory`. Si añades tests que escriben, aísla con los hooks de `testUtils.db()` (truncate / transacción global) o el estado se filtra entre runs.
+La BD en tests: `config/database.ts` define una única conexión PostgreSQL apuntada por `DB_*`, y quién es cada base lo decide el entorno. `.env.test` —que el framework carga **solo** cuando `NODE_ENV=test`— manda a la suite al 54411 (`db-test`) y pone `SESSION_DRIVER=memory`, así que las pruebas no tocan la base de desarrollo. Esa base vive en memoria: su esquema se va con el contenedor, y por eso `make test` migra antes de ejecutar y `migration:run` a mano quiere `NODE_ENV=test` delante. Aísla igualmente con los hooks de `testUtils.db()` (los tests de hoy usan `withGlobalTransaction`) o el estado se filtra entre tests del mismo run.
 
 Otros comandos útiles: `node ace list:routes`, `node ace make:controller|model|migration|validator|transformer|service`, `node ace migration:fresh`, `node ace repl`.
 

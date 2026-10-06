@@ -1,0 +1,82 @@
+# FlowSync — las dos bases de datos PostgreSQL del proyecto.
+#
+#   db       desarrollo, en el puerto 54410, con volumen: los datos sobreviven
+#            a un `docker compose down`.
+#   db-test  pruebas, en el puerto 54411, en memoria y sin volumen: cada
+#            arranque empieza vacío a propósito.
+#
+# Atajos: `make db-up`, `make db-down`, `make migrate`, `make test`.
+#
+# Sin clave `version:`: está obsoleta desde Compose v2 y lo único que hace hoy
+# es que Docker imprima un aviso por cada comando.
+
+# Prefijo de los nombres de contenedores, redes y volúmenes. Sin esto lo toma
+# del nombre de la carpeta, que cambia según dónde haya clonado cada uno.
+name: flowsync
+
+# Las credenciales, iguales en las dos bases; solo cambia el nombre de la base,
+# que cada servicio añade por su cuenta. No son secretos: las dos bases solo
+# escuchan en la máquina local y no llevan nada que no sea de desarrollo.
+x-postgres-env: &postgres-env
+  POSTGRES_USER: flowsync
+  POSTGRES_PASSWORD: flowsync
+  # Sin contraseña vacía ni `trust`: el puerto está publicado en la máquina, y
+  # una base sin contraseña es una base a la que entra cualquier proceso local.
+  POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+  # Para que las fechas no dependan del huso de quien levanta esto. El backend
+  # ya trabaja en UTC (`TZ=UTC` en su `.env`).
+  TZ: UTC
+
+# Lo que comparten las dos bases más allá de las credenciales.
+# `pgvector/pgvector:pg17` es la imagen oficial de PostgreSQL 17 con la
+# extensión de vectores ya dentro, así que no hay nada que construir.
+x-postgres: &postgres
+  image: pgvector/pgvector:pg17
+  restart: unless-stopped
+  healthcheck:
+    # `-h 127.0.0.1` no es decorativo: la primera vez, el entrypoint de la
+    # imagen crea la base con un servidor temporal que escucha SOLO en el
+    # socket Unix. Un `pg_isready` sin host usa ese socket y diría «sano» a
+    # mitad de la inicialización — justo el aviso que da la propia imagen—, y
+    # la primera migración se estrellaría contra una conexión rechazada. Por
+    # TCP no contesta nadie hasta que la base está de verdad en pie.
+    test: ['CMD-SHELL', 'pg_isready -q -h 127.0.0.1 -p 5432 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+    interval: 2s
+    timeout: 5s
+    # `start_period` da margen al primer arranque (crear la base lleva unos
+    # segundos) sin gastar reintentos en esos fallos.
+    start_period: 30s
+    retries: 10
+
+services:
+  db:
+    <<: *postgres
+    container_name: flowsync-db
+    environment:
+      <<: *postgres-env
+      POSTGRES_DB: flowsync
+    ports:
+      # 54410 y no 5432: quien tenga su propio PostgreSQL levantado se
+      # encontraría el puerto ocupado, y ese error no menciona a Docker.
+      - '54410:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+  db-test:
+    <<: *postgres
+    container_name: flowsync-db-test
+    environment:
+      <<: *postgres-env
+      POSTGRES_DB: flowsync_test
+    ports:
+      - '54411:5432'
+    # En memoria y sin volumen, a propósito: una batería de pruebas que depende
+    # de lo que dejó la anterior no es una batería de pruebas. Al parar el
+    # contenedor no queda nada, así que `make migrate` vuelve a crear el
+    # esquema desde cero cada vez.
+    tmpfs:
+      - /var/lib/postgresql/data
+
+volumes:
+  # Solo la de desarrollo. `db-test` no aparece aquí y no debe aparecer.
+  db-data:
